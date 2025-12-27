@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "frankchantu/myapp:latest" // <-- apna DockerHub username yahan lagao
+        DOCKER_IMAGE = "frankchantu/myapp:latest" // <-- apna DockerHub username
     }
 
     stages {
@@ -15,7 +15,11 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh "docker build -t ${DOCKER_IMAGE} ."
+                    try {
+                        sh "docker build -t ${DOCKER_IMAGE} ."
+                    } catch (err) {
+                        error "Docker build failed: ${err}"
+                    }
                 }
             }
         }
@@ -27,8 +31,12 @@ pipeline {
                     usernameVariable: 'DOCKER_USER', 
                     passwordVariable: 'DOCKER_PASS')]) {
                     script {
-                        sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
-                        sh "docker push ${DOCKER_IMAGE}"
+                        try {
+                            sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
+                            sh "docker push ${DOCKER_IMAGE}"
+                        } catch (err) {
+                            error "Docker push failed: ${err}. Check credentials or token."
+                        }
                     }
                 }
             }
@@ -37,9 +45,13 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    // Optional: agar Minikube use kar rahe ho
-                    sh "kubectl apply -f k8s-deployment.yaml"
-                    sh "kubectl apply -f k8s-service.yaml"
+                    try {
+                        // Optional: Minikube cluster
+                        sh "kubectl apply -f k8s-deployment.yaml"
+                        sh "kubectl apply -f k8s-service.yaml"
+                    } catch (err) {
+                        echo "Kubernetes deployment skipped or failed: ${err}"
+                    }
                 }
             }
         }
@@ -53,7 +65,8 @@ pipeline {
             echo 'Deployment successful!'
         }
         failure {
-            echo 'Pipeline failed!'
+            echo 'Pipeline failed! Check logs above.'
         }
     }
 }
+
