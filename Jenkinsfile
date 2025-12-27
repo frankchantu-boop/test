@@ -2,7 +2,8 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "frankchantu/myapp:latest" 
+        // Variable ko side pe rakhein, seedha username use karte hain error se bachne ke liye
+        IMAGE_NAME = "frankchantu/myapp:latest"
     }
 
     stages {
@@ -15,7 +16,8 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh "docker build -t ${DOCKER_IMAGE} ."
+                    // Yahan variable use ho raha hai
+                    sh "docker build -t ${IMAGE_NAME} ."
                 }
             }
         }
@@ -27,13 +29,10 @@ pipeline {
                     usernameVariable: 'DOCKER_USER', 
                     passwordVariable: 'DOCKER_PASS')]) {
                     script {
-                        try {
-                            // SINGLE QUOTES Zaroori hain yahan
-                            sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
-                            sh "docker push ${DOCKER_IMAGE}"
-                        } catch (err) {
-                            error "Docker push failed: ${err}"
-                        }
+                        // SINGLE QUOTES login ke liye
+                        sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                        // PUSH command
+                        sh "docker push ${IMAGE_NAME}"
                     }
                 }
             }
